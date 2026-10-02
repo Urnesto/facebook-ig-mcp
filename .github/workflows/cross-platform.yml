@@ -1,0 +1,40 @@
+name: Cross-platform check
+
+# Runs the setup and tool tests on Windows, Mac and Linux, using the same
+# commands the setup guide gives to users.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install the project (guide section 1)
+        run: |
+          uv venv --python 3.12
+          uv pip install -r requirements.txt
+
+      - name: Setup wizard creates .env and reports status
+        run: |
+          uv run python -c "from src import setup_wizard as w; w.ensure_env_file(); w.write_values({'FACEBOOK_APP_ID': '1234567890123456'})"
+          uv run python -m src.setup_wizard --status
+
+      - name: Settings load and the server module imports
+        run: uv run python -c "from src.config import get_settings; get_settings(); import src.instagram_mcp_server as m; m.InstagramMCPServer(); print('server builds')"
+
+      - name: Tests for the setup wizard, Facebook, comment and TikTok tools
+        run: uv run python -m pytest tests/test_setup_wizard.py tests/test_facebook_and_tiktok.py -q

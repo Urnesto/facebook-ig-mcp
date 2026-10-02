@@ -240,7 +240,8 @@ class InstagramClient:
                     "Making API request",
                     method=method,
                     endpoint=endpoint,
-                    params=params,
+                    # never write the access token to the log
+                    params={k: v for k, v in params.items() if k != "access_token"},
                 )
 
                 if method.upper() == "GET":

@@ -4,12 +4,15 @@ This repository is an MCP server that lets Claude work with an Instagram account
 
 Download source: https://github.com/Urnesto/facebook-ig-mcp.git
 
+For a full setup, use the `setup-social-mcp` skill in `.claude/skills/`. This file is the reference it builds on.
+
 ## How to talk to the user
 
 - Assume no technical background. Give one step at a time, say exactly where to click, and give the direct link.
-- `SETUP_GUIDE.md` is the user-facing guide, with a screenshot for every click. Point to its step numbers ("step 3.5") instead of re-explaining.
+- `SETUP_GUIDE.md` is the user-facing guide, with a screenshot for every click. Point to its step numbers ("step 3.4") instead of re-explaining.
 - When something fails, say what it means in plain words and what the user has to do. Do not paste stack traces.
-- Never ask the user to paste a password, token or secret into the chat. They type those into `.env` themselves.
+- Never ask the user to paste a password, token or secret into the chat. They type those into the setup wizard, which writes `.env`.
+- Every command must work on Mac, Windows and Linux. Use `uv run python -m ...`, never `.venv/bin/...` or shell-specific syntax.
 
 ## What needs setting up
 
@@ -24,25 +27,19 @@ There are three independent parts. Only set up what the user wants.
 ## Setup order
 
 1. Install: `uv venv --python 3.12`, then `uv pip install -r requirements.txt`. The virtualenv is managed by `uv` and has no `pip`.
-2. Settings: `cp env.example .env`, then the user fills in the values (guide section 2).
+2. Settings: for each secret, navigate to its page, run `uv run python -m src.setup_wizard open NAME` to open a one-value window for the user, then `uv run python -m src.setup_wizard wait KEY` (see AGENTS.md for the table). A user working alone can run `uv run python -m src.setup_wizard`. It creates `.env` from `env.example`, asks for each value with hidden input, and for the Meta part turns a user access token into the Page token and Instagram account number. Parts can be run alone: `meta`, `instagram`, `tiktok`.
 3. One-time logins, run by the user in a terminal:
-   - Instagram: `.venv/bin/python -m src.unofficial_client` (asks for the emailed 6-digit code)
-   - TikTok: `.venv/bin/python -m src.tiktok_client` (opens TikTok in the browser, user clicks Authorize)
-4. Connect to Claude Code: `claude mcp add --scope user instagram -- /bin/sh -c "cd $HOME/facebook-ig-mcp && exec .venv/bin/python -m src.instagram_mcp_server"`
+   - Instagram: `uv run python -m src.unofficial_client` (asks for the emailed 6-digit code)
+   - TikTok: `uv run python -m src.tiktok_client` (opens TikTok in the browser, user clicks Authorize)
+4. Connect to Claude Code: the server is defined in `.mcp.json`, so starting `claude` in the project folder is enough; the user approves the **instagram** server once. For every folder: `claude mcp add --scope user instagram -- uv run --directory FULL_PATH python -m src.instagram_mcp_server`.
 5. After any code or `.env` change, the user must reconnect with `/mcp`.
 
 ## Checking the setup without exposing secrets
 
-Do not `cat`, `grep` or read `.env`, `data/session_*.json` or `data/tiktok_token.json`. Check what is set like this, which prints no values:
+Do not `cat`, `grep` or read `.env`, `data/session_*.json` or `data/tiktok_token.json`. This prints `set` or `EMPTY` per key, and the TikTok key type, without any value:
 
 ```
-.venv/bin/python -c "
-from src.config import get_settings
-s = get_settings()
-for k in ('instagram_access_token','facebook_app_id','facebook_app_secret','instagram_business_account_id','instagram_username','instagram_password','tiktok_client_key','tiktok_client_secret'):
-    print(k, 'set' if getattr(s, k) else 'EMPTY')
-print('tiktok key type:', (s.tiktok_client_key or '')[:2], '(sb = sandbox, aw = production)')
-"
+uv run python -m src.setup_wizard --status
 ```
 
 Then confirm with the read-only tools: `validate_access_token`, `get_profile_info`, `tiktok_get_creator_info`, `get_usage`.
@@ -53,14 +50,14 @@ Then confirm with the read-only tools: `validate_access_token`, `get_profile_inf
 |---|---|---|
 | Settings fail to load at startup | `.env` has a key the code does not know, or a list not written as JSON | Compare with `env.example`. Lists look like `["jpg","png"]` |
 | "INSTAGRAM_USERNAME and INSTAGRAM_PASSWORD must be set" | Unofficial tools have no login | User fills both in `.env` |
-| "Instagram sent a verification code" | Instagram wants the emailed code | User runs `.venv/bin/python -m src.unofficial_client` |
+| "Instagram sent a verification code" | Instagram wants the emailed code | User runs `uv run python -m src.unofficial_client` |
 | Two-factor error on Instagram login | Not supported by this login | Use an account without two-factor |
-| Meta token invalid or a permission error | Token expired or a permission was not ticked | Guide step 3.5. The token must be the Page token from `me/accounts` |
+| Meta token invalid or a permission error | Token expired or a permission was not ticked | Guide step 3.4, or `uv run python -m src.setup_wizard meta`. The token must be the Page token from `me/accounts` |
 | `me/accounts` returns an empty list | The Page was not selected when generating the token | Generate the token again and select the Page |
 | TikTok login page says `client_key` | Wrong kind of key, or the app or sandbox was never saved | Use the sandbox keys (`sb...`). Production keys (`aw...`) only work after TikTok approves the app |
 | TikTok login page says `redirect_uri` | Login Kit has no saved redirect address | Add `http://localhost:3455/callback/` on the Desktop tab and click Apply changes (step 5.7) |
 | `unaudited_client_can_only_post_to_private_accounts` | App is not audited and the TikTok account is public | User sets the TikTok account to private (step 5.1) |
-| "Not logged in to TikTok" | No saved TikTok login | User runs `.venv/bin/python -m src.tiktok_client` |
+| "Not logged in to TikTok" | No saved TikTok login | User runs `uv run python -m src.tiktok_client` |
 | "Limit reached" | The project's own usage limit | Wait, or check `get_usage` |
 | "Already sent a DM to ..." | That user was messaged before | Only resend with `allow_repeat` if the user clearly asks |
 
@@ -85,12 +82,15 @@ TikTok's sandbox does not save until every starred field under Basic information
 | `src/tiktok_client.py` | TikTok login, upload and tool definitions |
 | `src/usage.py` | Usage log and limits |
 | `src/config.py` | Settings loaded from `.env` |
+| `src/setup_wizard.py` | Interactive wizard that writes `.env`; `--status` shows what is set |
+| `.mcp.json` | Tells Claude Code how to start the server |
+| `.claude/skills/setup-social-mcp/` | Skill that walks Claude through the whole setup |
 | `SETUP_GUIDE.md` | User guide. `Instagram_MCP_Setup_Guide.docx` is built from it |
 | `docs/images/` | Screenshots used by the guide |
 
 ## Working on the code
 
-- Run tests with `.venv/bin/python -m pytest -q`. Two tests in `tests/test_instagram_client.py` (media insights and publish media) fail for reasons unrelated to the tools above.
+- Run tests with `uv run python -m pytest -q`. Two tests in `tests/test_instagram_client.py` (media insights and publish media) fail for reasons unrelated to the tools above.
 - Tests mark async functions with `@pytest.mark.asyncio`; `pytest.ini` is not picked up for `asyncio_mode`.
 - Adding a tool: define it, map it to a usage action in the server's `OFFICIAL_TOOL_ACTIONS` (or the module's own map), and give that action a limit in `_usage_limits()`.
 - After changing `SETUP_GUIDE.md`, rebuild the Word file: `npm install docx`, then `node scripts/build_setup_guide.js SETUP_GUIDE.md Instagram_MCP_Setup_Guide.docx`.

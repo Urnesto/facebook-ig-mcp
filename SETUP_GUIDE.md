@@ -1,6 +1,8 @@
 # Setup Guide: Instagram and Facebook MCP for Claude
 
-The steps: download the project, create the settings file, set up Instagram and Facebook, set up followers and messages, optionally set up TikTok, and connect it to Claude. Section 8 lists everything Claude can do once it is connected. Commands in grey boxes go into the **Terminal** app, one line at a time.
+The steps: download the project, create the settings file, set up Instagram and Facebook, set up followers and messages, optionally set up TikTok, and connect it to Claude. Section 8 lists everything Claude can do once it is connected.
+
+Every command in this guide works the same on **Mac, Windows and Linux**. Type commands into a terminal: the **Terminal** app on a Mac, **PowerShell** on Windows. Paste one line at a time and press Enter. Commands in grey boxes go into the **Terminal** app, one line at a time.
 
 **Download source:** https://github.com/Urnesto/facebook-ig-mcp.git
 
@@ -12,11 +14,10 @@ git clone https://github.com/Urnesto/facebook-ig-mcp.git
 cd facebook-ig-mcp
 ```
 
-Install the `uv` helper (once per computer), then close and reopen the Terminal:
+Install the `uv` helper (once per computer). This is the only step that differs between systems, so use the line for yours, then close and reopen the terminal:
 
-```
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
+- **Mac or Linux:** `curl -LsSf https://astral.sh/uv/install.sh | sh`
+- **Windows (PowerShell):** `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`
 
 Install the project:
 
@@ -26,30 +27,41 @@ uv venv --python 3.12
 uv pip install -r requirements.txt
 ```
 
+If the computer says `git` is not found, install it from https://git-scm.com/downloads or use the ZIP download below.
+
 Links if you cannot find it:
 
 - The project on GitHub: https://github.com/Urnesto/facebook-ig-mcp
 - Download it as a ZIP file instead of using `git`: https://github.com/Urnesto/facebook-ig-mcp/archive/refs/heads/main.zip
 - The `uv` helper: https://docs.astral.sh/uv/getting-started/installation/
+- Git: https://git-scm.com/downloads
 - Claude Code: https://claude.com/claude-code
 
 ## 2. Create the settings file
 
-All keys and passwords live in one file named `.env`. Create it and open it in TextEdit:
+All keys and passwords live in one file named `.env` in the project folder. The setup wizard creates the file and fills it in for you:
 
 ```
-cp env.example .env
-open -e .env
+cd ~/facebook-ig-mcp
+uv run python -m src.setup_wizard
 ```
 
-Keep this file open. In the next sections you paste six values into it (eight if you also use TikTok). Write each value straight after the `=` sign, with no spaces and no quotation marks. Leave every other line as it is.
+The wizard asks for each value in turn. Secrets are hidden while you type or paste them. Press Enter to skip a value you do not have yet, and run the wizard again whenever you have more. It never shows what is already saved.
+
+You get the values in sections 3 to 5. To see what is filled in so far, without showing any value:
+
+```
+uv run python -m src.setup_wizard --status
+```
+
+If you prefer to edit the file by hand: make a copy of `env.example`, name the copy `.env`, and open it in a text editor (TextEdit on a Mac, Notepad on Windows). Write each value straight after the `=` sign, with no spaces and no quotation marks, and leave every other line as it is.
 
 | Setting | What to put there | Step |
 |---|---|---|
-| `FACEBOOK_APP_ID` | Facebook key: App ID of your Meta app | 3.4 |
-| `FACEBOOK_APP_SECRET` | Facebook key: App secret of your Meta app | 3.4 |
-| `INSTAGRAM_ACCESS_TOKEN` | Instagram key: Page access token | 3.5 |
-| `INSTAGRAM_BUSINESS_ACCOUNT_ID` | Instagram key: Instagram account number | 3.5 |
+| `FACEBOOK_APP_ID` | Facebook key: App ID of your Meta app | 3.3 |
+| `FACEBOOK_APP_SECRET` | Facebook key: App secret of your Meta app | 3.3 |
+| `INSTAGRAM_ACCESS_TOKEN` | Instagram key: Page access token | 3.4 |
+| `INSTAGRAM_BUSINESS_ACCOUNT_ID` | Instagram key: Instagram account number | 3.4 |
 | `INSTAGRAM_USERNAME` | Instagram username, without the @ sign | 4.1 |
 | `INSTAGRAM_PASSWORD` | Instagram password | 4.1 |
 | `TIKTOK_CLIENT_KEY` | TikTok key: Client key of your TikTok app (optional) | 5.9 |
@@ -59,33 +71,11 @@ Keep this file open. In the next sections you paste six values into it (eight if
 
 ## 3. Set up Instagram and Facebook (Meta)
 
-This part gives Claude official access to your Instagram account and your Facebook Page. It covers profile information, posts, statistics, publishing to Instagram and publishing to the Facebook Page. You do it once, in a web browser.
+This part gives Claude official access to your Instagram business account and your Facebook Page. It assumes the Instagram account is already a Business or Creator account. It covers profile information, posts, statistics, publishing to Instagram and publishing to the Facebook Page. You do it once, in a web browser.
 
 Meta changes its screens from time to time, so button names may differ slightly from the ones below.
 
-### Step 3.1. Create an Instagram business account
-
-Meta only gives access to professional Instagram accounts (Business or Creator). A personal account does not work. Switching is free and is done in the Instagram app on your phone.
-
-1. Open the Instagram app and log in. If you have no account yet, create one first with **Sign up**.
-2. Tap your profile picture in the bottom right to open your profile.
-3. Tap the menu (three lines) in the top right to open **Settings and activity**.
-4. Under **For professionals**, tap **Account type and tools**.
-5. Tap **Switch to professional account**.
-6. Choose the category that best describes what you do.
-7. Choose **Business** (or **Creator**) and tap **Next**.
-8. Add contact details, or tap **Don't use my contact info** to skip.
-9. If the app offers to connect to Facebook, you can skip it. You do that in the next step.
-
-> **Recommended:** if the account was private, switching makes it public. You can switch back to a personal account at any time in the same menu.
-
-Links if you cannot find it:
-
-- Create an Instagram account: https://www.instagram.com/accounts/emailsignup/
-- Instagram's own instructions for a professional account: https://help.instagram.com/502981923235522
-- The same switch in a web browser: https://www.instagram.com/accounts/convert_to_professional_account/
-
-### Step 3.2. Link the Instagram account to a Facebook Page
+### Step 3.1. Link the Instagram account to a Facebook Page
 
 The keys are issued through a Facebook Page, so the Instagram account must be linked to one that you manage.
 
@@ -99,7 +89,13 @@ The keys are issued through a Facebook Page, so the Instagram account must be li
 3. Click **See all profiles** and select your Page.
 4. Click the Page's profile picture in the top right, then **Settings & privacy → Settings**.
 5. Under **Permissions**, click **Linked accounts**.
-6. Click **Instagram**, then **Connect account**, and log in to the Instagram account from step 3.1.
+6. Click **Instagram**, then **Connect account**, and log in to your Instagram business account.
+
+![Facebook Page settings with Connect account marked](docs/images/facebook-02-connect-instagram.jpg)
+
+*The Instagram screen in the Page's settings. Click "Connect account".*
+
+Shortcut: once you have selected the Page in step 3, this link opens the same screen directly: https://www.facebook.com/settings/?tab=linked_instagram
 
 Links if you cannot find it:
 
@@ -107,7 +103,7 @@ Links if you cannot find it:
 - Your Pages: https://www.facebook.com/pages/?category=your_pages
 - Facebook's own instructions for connecting Instagram to a Page: https://www.facebook.com/help/1148909221857370
 
-### Step 3.3. Create a Meta app
+### Step 3.2. Create a Meta app
 
 The "app" is only a container for your keys. Nobody else sees it and you do not need to publish it.
 
@@ -162,7 +158,7 @@ Links if you cannot find it:
 - Your apps: https://developers.facebook.com/apps/
 - Meta's own instructions: https://developers.facebook.com/docs/development/create-an-app
 
-### Step 3.4. Facebook keys: App ID and App secret
+### Step 3.3. Facebook keys: App ID and App secret
 
 1. Open https://developers.facebook.com/apps/ and click your app.
 2. In the left menu, click **App settings**, then **Basic**.
@@ -173,7 +169,7 @@ Links if you cannot find it:
 
 *App settings → Basic. The App ID is at the top, and "Show" reveals the App secret.*
 
-### Step 3.5. Instagram keys: access token and account number
+### Step 3.4. Instagram keys: access token and account number
 
 The two Instagram keys are the **access token** (the key Claude uses to act for your Instagram account and Page) and the **Instagram account number** (which account to act on). You get both from one tool, the Graph API Explorer. You make a short token first, extend it, and then swap it for the Page token.
 
@@ -214,6 +210,8 @@ The two Instagram keys are the **access token** (the key Claude uses to act for 
 
 *Click "Generate Access Token".*
 
+   **Shortcut:** copy the token now, run `uv run python -m src.setup_wizard meta`, and paste it when the wizard asks for the user access token. The wizard extends the token, finds your Page and saves both Instagram keys, so you can skip steps 6 to 13.
+
 6. Click the small blue **ⓘ** icon to the left of the token. In the window that opens, click **Open in Access Token Tool**.
 
 ![Access Token Info window with Open in Access Token Tool marked](docs/images/meta-13-token-info.jpg)
@@ -247,7 +245,7 @@ The two Instagram keys are the **access token** (the key Claude uses to act for 
 
 13. Save the `.env` file.
 
-A Page token made this way normally does not expire. If Claude later says the token is invalid, repeat step 3.5.
+A Page token made this way normally does not expire. If Claude later says the token is invalid, repeat step 3.4.
 
 Links if you cannot find it:
 
@@ -260,9 +258,9 @@ Links if you cannot find it:
 
 | What you see | What it means |
 |---|---|
-| The answer in step 9 of 3.5 is empty (`"data": []`) | Your Page was not selected in the Facebook window in step 5 of 3.5. Generate the token again and select the Page. |
-| There is no `instagram_business_account` in the answer | The Instagram account is not professional or not linked to the Page. Repeat steps 3.1 and 3.2. |
-| Facebook posting is refused later | `pages_manage_posts` was not ticked in step 4 of 3.5. Repeat step 3.5. |
+| The answer in step 9 of 3.4 is empty (`"data": []`) | Your Page was not selected in the Facebook window in step 5 of 3.4. Generate the token again and select the Page. |
+| There is no `instagram_business_account` in the answer | The Instagram account is not a Business or Creator account, or it is not linked to the Page. Repeat step 3.1. |
+| Facebook posting is refused later | `pages_manage_posts` was not ticked in step 4 of 3.4. Repeat step 3.4. |
 | Reading or replying to DMs is refused | Meta has not granted "Advanced Access" for messages. See `INSTAGRAM_DM_SETUP.md` in the project folder. |
 
 ## 4. Set up followers and messages
@@ -273,9 +271,12 @@ Meta's official access cannot list your followers or message someone who has not
 
 ### Step 4.1. Add the login to the settings file
 
-1. In the `.env` file, write the Instagram username after `INSTAGRAM_USERNAME=`, without the @ sign.
-2. Write the Instagram password after `INSTAGRAM_PASSWORD=`.
-3. Save the file.
+Run the wizard for this part and type the Instagram username (without the @ sign) and the password when asked:
+
+```
+cd ~/facebook-ig-mcp
+uv run python -m src.setup_wizard instagram
+```
 
 Two-factor authentication must be switched off on this account. The login does not support it.
 
@@ -283,11 +284,11 @@ Two-factor authentication must be switched off on this account. The login does n
 
 ```
 cd ~/facebook-ig-mcp
-.venv/bin/python -m src.unofficial_client
+uv run python -m src.unofficial_client
 ```
 
 1. Instagram usually emails a 6-digit code to the account's address. Open the newest email from Instagram.
-2. Type the code into the Terminal and press Enter.
+2. Type the code into the terminal and press Enter.
 3. Wait for **Logged in as …**. The login is now saved in the `data` folder and is reused every time.
 
 If Instagram later asks for a code again, repeat this step.
@@ -298,7 +299,7 @@ Once Claude is connected (section 6), ask Claude things like these:
 
 | You ask | What happens |
 |---|---|
-| "Get my Instagram followers." | Claude lists every follower and saves the list as `data/followers_USERNAME.csv`, which opens in Numbers or Excel. |
+| "Get my Instagram followers." | Claude lists every follower and saves the list as `data/followers_USERNAME.csv`, which opens in Excel, Numbers or Google Sheets. |
 | "Who are my new followers since last time?" | Claude compares with the previous list and shows who is new and who left. |
 | "Send a DM to USERNAME: Hello!" | Claude sends that message to the user. |
 | "Show my Instagram usage." | Claude shows how many actions are used today and who was already messaged. |
@@ -506,7 +507,7 @@ A sandbox only works for TikTok accounts you add to it.
 
 2. Scroll to the top of the sandbox page and find **Credentials**.
 3. Click the eye icon next to **Client key**, copy the key, and paste it after `TIKTOK_CLIENT_KEY=` in the `.env` file.
-4. Do the same for **Client secret** and paste it after `TIKTOK_CLIENT_SECRET=`. Save the file.
+4. Do the same for **Client secret** and paste it after `TIKTOK_CLIENT_SECRET=`. Save the file. Or run `uv run python -m src.setup_wizard tiktok` and paste both keys when asked.
 
 ![Sandbox page with the Credentials box](docs/images/tiktok-22-credentials.jpg)
 
@@ -524,11 +525,11 @@ Links if you cannot find it:
 
 ```
 cd ~/facebook-ig-mcp
-.venv/bin/python -m src.tiktok_client
+uv run python -m src.tiktok_client
 ```
 
 1. Your browser opens a TikTok page. Log in and click **Authorize**.
-2. The browser shows "TikTok login received". Go back to the Terminal.
+2. The browser shows "TikTok login received". Go back to the terminal.
 3. Wait for **Logged in to TikTok**. The login is saved in the `data` folder and renews itself for a year.
 
 ### Step 5.11. What you can do afterwards
@@ -536,12 +537,12 @@ cd ~/facebook-ig-mcp
 | You ask | What happens |
 |---|---|
 | "Which TikTok account is connected?" | Claude shows the account and which privacy levels TikTok allows. |
-| "Post the video ~/Movies/clip.mp4 to TikTok with the caption: Hello!" | Claude uploads the video as a private post and gives you a post number. |
+| "Post the video clip.mp4 from my Downloads folder to TikTok with the caption: Hello!" | Claude uploads the video as a private post and gives you a post number. |
 | "Check the status of that TikTok post." | Claude says whether it is still processing, published or failed. |
 
 Things to know:
 
-- **Videos** can come from a file on your Mac.
+- **Videos** can come from a file on your computer.
 - **Photos** must already be on a website whose address you have verified in the TikTok app page (**URL properties**).
 - The project allows **15 TikTok posts per 24 hours**.
 - To post publicly, follow step 5.12: import the sandbox into **Production**, submit it for review, and pass TikTok's audit.
@@ -586,13 +587,26 @@ Links if you cannot find it:
 
 ## 6. Connect to Claude
 
-Paste this as one line:
+The project already contains the file that tells Claude Code how to start the server (`.mcp.json`), so there is nothing to configure. Start Claude Code inside the project folder:
 
 ```
-claude mcp add --scope user instagram -- /bin/sh -c "cd $HOME/facebook-ig-mcp && exec .venv/bin/python -m src.instagram_mcp_server"
+cd ~/facebook-ig-mcp
+claude
 ```
 
-Start Claude Code, type `/mcp`, and check that **instagram** is connected.
+1. The first time, Claude Code asks whether to use the **instagram** server from this project. Choose **yes**.
+2. Type `/mcp` and check that **instagram** is shown as connected.
+
+After you change a setting or log in again, type `/mcp` and reconnect **instagram**.
+
+The tools are available whenever you start Claude Code in this folder. To have them in every folder, run these two lines once. The first prints the full path of the project folder; put that path in place of `FULL_PATH` in the second:
+
+```
+pwd
+claude mcp add --scope user instagram -- uv run --directory FULL_PATH python -m src.instagram_mcp_server
+```
+
+Claude can also do the setup with you: start Claude Code in the project folder and say "set up the Instagram MCP". It follows the instructions in `CLAUDE.md` and the setup skill, checks what is missing, opens the right pages and runs the commands. You still type the keys and passwords yourself, into the wizard.
 
 ## 7. Try it
 
@@ -643,7 +657,7 @@ You never type the tool names yourself. Ask in plain words and Claude picks the 
 | `delete_facebook_post` | Deletes a post for good | "Delete that Facebook post." |
 | `get_facebook_page_insights` | Shows engagement, views and new followers of the Page | "Show my Facebook Page statistics." |
 | `get_facebook_post_insights` | Shows views, clicks and reactions for one post | "How did that Facebook post perform?" |
-| `get_account_pages` | Lists your Facebook Pages. Works only with a user token, not the Page token from step 3.5 | "List my Facebook Pages." |
+| `get_account_pages` | Lists your Facebook Pages. Works only with a user token, not the Page token from step 3.4 | "List my Facebook Pages." |
 
 ### Comments on Facebook and Instagram
 
@@ -675,7 +689,7 @@ You never type the tool names yourself. Ask in plain words and Claude picks the 
 | Tool | What it does | Example request |
 |---|---|---|
 | `tiktok_get_creator_info` | Shows the connected TikTok account and the privacy levels TikTok allows | "Which TikTok account is connected?" |
-| `tiktok_publish_video` | Posts a video from a file on your Mac or from a verified web address | "Post ~/Movies/clip.mp4 to TikTok with the caption: ..." |
+| `tiktok_publish_video` | Posts a video from a file on your computer or from a verified web address | "Post clip.mp4 from my Downloads folder to TikTok with the caption: ..." |
 | `tiktok_publish_photos` | Posts one or more photos from a verified web address | "Post these photos to TikTok: (links)" |
 | `tiktok_get_post_status` | Says whether a post is processing, published or failed | "Check the status of that TikTok post." |
 

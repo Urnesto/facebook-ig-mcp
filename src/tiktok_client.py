@@ -3,7 +3,7 @@ TikTok posting via the official Content Posting API.
 
 Needs a TikTok developer app with Login Kit and the Content Posting API (Direct
 Post) added. Log in once with:
-    .venv/bin/python -m src.tiktok_client
+    uv run python -m src.tiktok_client
 The tokens are saved in data/tiktok_token.json and refreshed automatically.
 
 Until TikTok has audited the app, every post is restricted to private viewing.
@@ -96,14 +96,14 @@ async def _token_request(form: Dict[str, str]) -> Dict[str, Any]:
 async def _access_token() -> str:
     if not TOKEN_PATH.exists():
         raise TikTokError(
-            "Not logged in to TikTok. Run once: .venv/bin/python -m src.tiktok_client"
+            "Not logged in to TikTok. Run once: uv run python -m src.tiktok_client"
         )
     token = json.loads(TOKEN_PATH.read_text(encoding="utf-8"))
     if token["expires_at"] - time.time() < 300:
         # Access tokens last 24 hours; the refresh token lasts a year
         if token["refresh_expires_at"] < time.time():
             raise TikTokError(
-                "TikTok login expired. Run again: .venv/bin/python -m src.tiktok_client"
+                "TikTok login expired. Run again: uv run python -m src.tiktok_client"
             )
         token = await _token_request(
             {"grant_type": "refresh_token", "refresh_token": token["refresh_token"]}

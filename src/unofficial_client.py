@@ -35,7 +35,7 @@ def _refuse_challenge_code(username: str, choice: Any) -> str:
     # instagrapi's default handler calls input(), which would read the MCP stdio stream
     raise UnofficialAPIError(
         f"Instagram sent a verification code for '{username}'. Log in once from a "
-        "terminal to enter it: .venv/bin/python -m src.unofficial_client"
+        "terminal to enter it: uv run python -m src.unofficial_client"
     )
 
 
