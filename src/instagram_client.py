@@ -250,6 +250,8 @@ class InstagramClient:
                         response = await self.client.post(url, params=params, json=data)
                     else:
                         response = await self.client.post(url, params=params)
+                elif method.upper() == "DELETE":
+                    response = await self.client.delete(url, params=params)
                 else:
                     raise ValueError(f"Unsupported HTTP method: {method}")
 
@@ -451,6 +453,160 @@ class InstagramClient:
             logger.error("Failed to publish media", error=str(e))
             raise InstagramAPIError(f"Failed to publish media: {str(e)}")
 
+    async def publish_facebook_post(
+        self,
+        message: Optional[str] = None,
+        link: Optional[str] = None,
+        image_url: Optional[str] = None,
+        video_url: Optional[str] = None,
+        scheduled_time: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Publish (or schedule) a post on the Facebook Page the access token belongs to.
+
+        Note: Requires a Page Access Token with pages_manage_posts permission.
+        """
+        if not (message or link or image_url or video_url):
+            raise InstagramAPIError("Provide a message, link, image_url or video_url")
+
+        try:
+            data: Dict[str, Any] = {}
+            if scheduled_time:
+                # Facebook accepts scheduled times 10 minutes to 30 days ahead
+                publish_at = datetime.fromisoformat(scheduled_time)
+                data["published"] = False
+                data["scheduled_publish_time"] = int(publish_at.timestamp())
+
+            # With a Page Access Token, "me" is the page itself
+            if video_url:
+                data["file_url"] = video_url
+                if message:
+                    data["description"] = message
+                response = await self._make_request("POST", "me/videos", data=data)
+                post_id = response["id"]
+            elif image_url:
+                data["url"] = image_url
+                if message:
+                    data["caption"] = message
+                response = await self._make_request("POST", "me/photos", data=data)
+                post_id = response.get("post_id") or response["id"]
+            else:
+                if message:
+                    data["message"] = message
+                if link:
+                    data["link"] = link
+                response = await self._make_request("POST", "me/feed", data=data)
+                post_id = response["id"]
+
+            return {
+                "id": post_id,
+                "url": f"https://www.facebook.com/{post_id}",
+                "scheduled_for": scheduled_time,
+            }
+
+        except InstagramAPIError:
+            raise
+        except Exception as e:
+            logger.error("Failed to publish Facebook post", error=str(e))
+            raise InstagramAPIError(f"Failed to publish Facebook post: {str(e)}")
+
+    async def get_facebook_posts(
+        self, limit: int = 10, scheduled: bool = False
+    ) -> List[Dict[str, Any]]:
+        """List published (or scheduled) posts of the Facebook Page."""
+        if scheduled:
+            endpoint = "me/scheduled_posts"
+            fields = "id,message,created_time,scheduled_publish_time"
+        else:
+            endpoint = "me/posts"
+            fields = (
+                "id,message,created_time,permalink_url,"
+                "likes.summary(true).limit(0),comments.summary(true).limit(0),shares"
+            )
+        data = await self._make_request(
+            "GET", endpoint, params={"fields": fields, "limit": limit}, use_cache=False
+        )
+        posts = []
+        for item in data.get("data", []):
+            post = {
+                k: item.get(k)
+                for k in ("id", "message", "created_time", "permalink_url", "scheduled_publish_time")
+                if k in item
+            }
+            if not scheduled:
+                post["likes"] = item.get("likes", {}).get("summary", {}).get("total_count", 0)
+                post["comments"] = item.get("comments", {}).get("summary", {}).get("total_count", 0)
+                post["shares"] = item.get("shares", {}).get("count", 0)
+            posts.append(post)
+        return posts
+
+    async def update_facebook_post(self, post_id: str, message: str) -> Dict[str, Any]:
+        """Change the text of a Facebook Page post."""
+        return await self._make_request("POST", post_id, data={"message": message})
+
+    async def delete_object(self, object_id: str) -> Dict[str, Any]:
+        """Delete a Facebook post, a Facebook comment or an Instagram comment by ID."""
+        return await self._make_request("DELETE", object_id)
+
+    async def get_comments(
+        self, platform: str, post_id: str, limit: int = 25
+    ) -> List[Dict[str, Any]]:
+        """List comments on a Facebook Page post or an Instagram media post."""
+        if platform == "instagram":
+            fields = "id,text,username,timestamp,like_count,hidden,replies{id,text,username,timestamp}"
+            params = {"fields": fields, "limit": limit}
+        else:
+            fields = "id,message,from,created_time,like_count,comment_count,is_hidden"
+            params = {"fields": fields, "limit": limit, "filter": "stream"}
+        data = await self._make_request(
+            "GET", f"{post_id}/comments", params=params, use_cache=False
+        )
+        return data.get("data", [])
+
+    async def reply_to_comment(
+        self, platform: str, comment_id: str, message: str
+    ) -> Dict[str, Any]:
+        """Reply to a Facebook or Instagram comment."""
+        edge = "replies" if platform == "instagram" else "comments"
+        return await self._make_request(
+            "POST", f"{comment_id}/{edge}", data={"message": message}
+        )
+
+    async def set_comment_hidden(
+        self, platform: str, comment_id: str, hidden: bool = True
+    ) -> Dict[str, Any]:
+        """Hide or unhide a Facebook or Instagram comment."""
+        field = "hide" if platform == "instagram" else "is_hidden"
+        return await self._make_request("POST", comment_id, data={field: hidden})
+
+    async def like_facebook_comment(self, comment_id: str) -> Dict[str, Any]:
+        """Like a comment on the Facebook Page, as the Page."""
+        return await self._make_request("POST", f"{comment_id}/likes")
+
+    async def get_facebook_page_insights(self, period: str = "day") -> Dict[str, Any]:
+        """Get engagement, views and follower figures for the Facebook Page."""
+        metrics = (
+            "page_post_engagements,page_views_total,page_follows,"
+            "page_daily_follows_unique,page_media_view,page_total_media_view_unique"
+        )
+        data = await self._make_request(
+            "GET", "me/insights", params={"metric": metrics, "period": period}
+        )
+        return {
+            item["name"]: item.get("values", []) for item in data.get("data", [])
+        }
+
+    async def get_facebook_post_insights(self, post_id: str) -> Dict[str, Any]:
+        """Get views, clicks and reactions for one Facebook Page post."""
+        metrics = "post_media_view,post_clicks,post_reactions_by_type_total"
+        data = await self._make_request(
+            "GET", f"{post_id}/insights", params={"metric": metrics}
+        )
+        return {
+            item["name"]: (item.get("values") or [{}])[0].get("value")
+            for item in data.get("data", [])
+        }
+
     async def get_account_pages(self) -> List[FacebookPage]:
         """Get Facebook pages connected to the account."""
         params = {"fields": "id,name,instagram_business_account"}
@@ -526,12 +682,8 @@ class InstagramClient:
         Note: Requires instagram_manage_messages permission.
         """
         if not page_id:
-            # Try to get page ID from connected pages
-            pages = await self.get_account_pages()
-            if not pages:
-                raise InstagramAPIError("No Facebook pages found. Please connect a Facebook page to your Instagram account.")
-            page_id = pages[0].id
-            logger.info(f"Using page ID: {page_id}")
+            # With a Page Access Token (required for messaging), "me" is the page itself
+            page_id = "me"
 
         fields = "id,updated_time,message_count"
         params = {

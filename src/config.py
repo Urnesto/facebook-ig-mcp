@@ -23,6 +23,37 @@ class InstagramMCPSettings(BaseSettings):
     instagram_business_account_id: Optional[str] = Field(
         None, description="Instagram business account ID"
     )
+    instagram_username: Optional[str] = Field(
+        None, description="Instagram login username (for the unofficial follower/DM tools)"
+    )
+    instagram_password: Optional[str] = Field(
+        None, description="Instagram login password (for the unofficial follower/DM tools)"
+    )
+    unofficial_dm_daily_limit: int = Field(
+        20, description="Max DMs sent via the unofficial API per 24 hours"
+    )
+    unofficial_follower_fetch_daily_limit: int = Field(
+        10, description="Max follower list fetches via the unofficial API per 24 hours"
+    )
+    tiktok_client_key: Optional[str] = Field(
+        None, description="TikTok developer app client key (for the TikTok posting tools)"
+    )
+    tiktok_client_secret: Optional[str] = Field(
+        None, description="TikTok developer app client secret"
+    )
+    tiktok_redirect_uri: str = Field(
+        "http://localhost:3455/callback/",
+        description="Redirect URI registered in the TikTok app's Login Kit settings",
+    )
+    tiktok_scopes: str = Field(
+        "user.info.basic,video.publish", description="TikTok scopes requested at login"
+    )
+    tiktok_posts_per_day: int = Field(
+        15, description="Max TikTok posts per 24 hours"
+    )
+    instaloader_username: Optional[str] = Field(
+        None, description="Deprecated: no longer used, kept so existing .env files still load"
+    )
 
     # API Configuration
     instagram_api_version: str = Field("v19.0", description="Instagram API version")

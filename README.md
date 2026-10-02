@@ -3,6 +3,10 @@
 [![MSeeP.ai Security Assessment Badge](https://mseep.net/pr/jlbadano-ig-mcp-badge.png)](https://mseep.ai/app/jlbadano-ig-mcp)
 # Instagram MCP Server
 
+> **New here?** Follow the [Easy Setup Guide](SETUP_GUIDE.md), written for non-technical users. A Word version is in `Instagram_MCP_Setup_Guide.docx`.
+>
+> **Download source:** https://github.com/Urnesto/facebook-ig-mcp.git
+
 A Model Context Protocol (MCP) server that provides seamless integration with Instagram's Graph API, enabling AI applications to interact with Instagram Business accounts programmatically.
 
 ## Features
@@ -261,8 +265,8 @@ def refresh_long_lived_token(access_token, app_id, app_secret):
 
 1. **Clone the repository**:
 ```bash
-git clone <repository-url>
-cd ig-mcp
+git clone https://github.com/Urnesto/facebook-ig-mcp.git
+cd facebook-ig-mcp
 ```
 
 2. **Install dependencies**:

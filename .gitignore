@@ -341,3 +341,9 @@ redis_data/
 local_config.py
 dev_settings.py
 .local/ 
+# Unofficial API session and follower exports
+data/
+.env.bak
+
+# Word lock files
+~$*

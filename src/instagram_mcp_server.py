@@ -27,6 +27,28 @@ from .models.instagram_models import (
     MCPToolResult,
     PublishMediaRequest,
 )
+from .facebook_tools import FACEBOOK_TOOL_ACTIONS, FACEBOOK_TOOL_DEFS, call_facebook_tool
+from .tiktok_client import (
+    TIKTOK_TOOL_ACTIONS,
+    TIKTOK_TOOL_DEFS,
+    TIKTOK_TOOL_NAMES,
+    TikTokError,
+    call_tiktok_tool,
+)
+from .unofficial_client import UnofficialAPIError
+from .usage import Limits, UsageLimitError, check_limit, get_usage, record_event
+
+# Official API tools counted against the Graph API limits, by usage action
+OFFICIAL_TOOL_ACTIONS = {
+    "get_profile_info": "profile_request",
+    "get_media_posts": "media_request",
+    "get_media_insights": "insights_request",
+    "get_account_insights": "insights_request",
+    "publish_media": "publish",
+    "publish_facebook_post": "facebook_post",
+    **FACEBOOK_TOOL_ACTIONS,
+    **TIKTOK_TOOL_ACTIONS,
+}
 
 # Configure logging
 logger = structlog.get_logger(__name__)
@@ -42,6 +64,36 @@ class InstagramMCPServer:
         self.settings = get_settings()
         self.server = Server(self.settings.mcp_server_name)
         self._setup_handlers()
+
+    def _unofficial_credentials(self) -> tuple[str, str]:
+        """Return the login used by the unofficial (instagrapi) tools."""
+        username = self.settings.instagram_username
+        password = self.settings.instagram_password
+        if not username or not password:
+            raise UnofficialAPIError(
+                "INSTAGRAM_USERNAME and INSTAGRAM_PASSWORD must be set in .env"
+            )
+        return username, password
+
+    def _usage_account(self) -> str:
+        """Name of the usage log shared by the official and unofficial tools."""
+        return self.settings.instagram_username or "default"
+
+    def _usage_limits(self) -> Limits:
+        """Limit and window (hours) for every tracked action."""
+        per_hour = self.settings.rate_limit_requests_per_hour
+        return {
+            "profile_request": (per_hour, 1),
+            "media_request": (per_hour, 1),
+            "insights_request": (per_hour, 1),
+            "publish": (self.settings.rate_limit_posts_per_day, 24),
+            "facebook_post": (self.settings.rate_limit_posts_per_day, 24),
+            "facebook_request": (per_hour, 1),
+            "comment_request": (per_hour, 1),
+            "tiktok_post": (self.settings.tiktok_posts_per_day, 24),
+            "dm": (self.settings.unofficial_dm_daily_limit, 24),
+            "follower_fetch": (self.settings.unofficial_follower_fetch_daily_limit, 24),
+        }
 
     def _setup_handlers(self):
         """Set up MCP server handlers."""
@@ -134,6 +186,51 @@ class InstagramMCPServer:
                             },
                         },
                         "required": ["media_id"],
+                    },
+                ),
+                Tool(
+                    name="publish_facebook_post",
+                    description=(
+                        "Publish a post to the Facebook Page linked to the account: text, "
+                        "a link, a photo or a video. Pass scheduled_time to publish it later "
+                        "instead of now. Requires a Page Access Token with pages_manage_posts."
+                    ),
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "message": {
+                                "type": "string",
+                                "description": "Text of the post (caption when image_url is given)",
+                            },
+                            "link": {
+                                "type": "string",
+                                "format": "uri",
+                                "description": "Link to attach to a text post (optional)",
+                            },
+                            "image_url": {
+                                "type": "string",
+                                "format": "uri",
+                                "description": (
+                                    "URL of a photo to post "
+                                    "(must be publicly accessible)"
+                                ),
+                            },
+                            "video_url": {
+                                "type": "string",
+                                "format": "uri",
+                                "description": (
+                                    "URL of a video to post "
+                                    "(must be publicly accessible)"
+                                ),
+                            },
+                            "scheduled_time": {
+                                "type": "string",
+                                "description": (
+                                    "When to publish, as ISO 8601 with time zone, e.g. "
+                                    "2026-10-05T10:00:00+03:00 (10 minutes to 30 days ahead)"
+                                ),
+                            },
+                        },
                     },
                 ),
                 Tool(
@@ -305,6 +402,71 @@ class InstagramMCPServer:
                         "required": ["recipient_id", "message"],
                     },
                 ),
+                Tool(
+                    name="get_followers",
+                    description=(
+                        "Get the full follower list of an Instagram account (unofficial, via instagrapi). "
+                        "Saves a CSV and reports new and lost followers since the last check. "
+                        "Returned user IDs work with send_dm_to_user, NOT with send_dm (which needs an IGSID)."
+                    ),
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "username": {
+                                "type": "string",
+                                "description": "Account to fetch followers for (defaults to INSTAGRAM_USERNAME)",
+                            },
+                            "only_new": {
+                                "type": "boolean",
+                                "description": "Return only followers that are new since the last check",
+                                "default": False,
+                            },
+                        },
+                    },
+                ),
+                Tool(
+                    name="send_dm_to_user",
+                    description=(
+                        "Send an Instagram direct message to any user by username or user ID "
+                        "(unofficial, via instagrapi). Unlike send_dm, the recipient does not need "
+                        "to have messaged first. Bulk or unsolicited messaging can get the account restricted."
+                    ),
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "username": {
+                                "type": "string",
+                                "description": "Recipient's Instagram username",
+                            },
+                            "user_id": {
+                                "type": "string",
+                                "description": "Recipient's user ID as returned by get_followers (alternative to username)",
+                            },
+                            "message": {
+                                "type": "string",
+                                "description": "Message text to send (max 1000 characters)",
+                                "maxLength": 1000,
+                            },
+                            "allow_repeat": {
+                                "type": "boolean",
+                                "description": "Send even if this user was already DMed before (refused by default)",
+                                "default": False,
+                            },
+                        },
+                        "required": ["message"],
+                    },
+                ),
+                Tool(
+                    name="get_usage",
+                    description=(
+                        "Show tracked usage: profile, media and insights requests per hour, posts "
+                        "published per day, unofficial DMs and follower fetches per day, with used "
+                        "and remaining against each limit, counts per day, and every user already DMed."
+                    ),
+                    inputSchema={"type": "object", "properties": {}},
+                ),
+                *FACEBOOK_TOOL_DEFS,
+                *TIKTOK_TOOL_DEFS,
             ]
 
         @self.server.call_tool()
@@ -318,6 +480,11 @@ class InstagramMCPServer:
                 instagram_client = InstagramClient()
 
             try:
+                usage_action = OFFICIAL_TOOL_ACTIONS.get(name)
+                if usage_action:
+                    limit, hours = self._usage_limits()[usage_action]
+                    check_limit(self._usage_account(), usage_action, limit, hours)
+
                 if name == "get_profile_info":
                     account_id = arguments.get("account_id")
                     profile = await instagram_client.get_profile_info(account_id)
@@ -382,6 +549,23 @@ class InstagramMCPServer:
                     result = MCPToolResult(
                         success=True,
                         data=response.model_dump(mode='json'),
+                        metadata={
+                            "tool": name,
+                            "timestamp": datetime.utcnow().isoformat(),
+                        },
+                    )
+
+                elif name == "publish_facebook_post":
+                    data = await instagram_client.publish_facebook_post(
+                        arguments.get("message"),
+                        arguments.get("link"),
+                        arguments.get("image_url"),
+                        arguments.get("video_url"),
+                        arguments.get("scheduled_time"),
+                    )
+                    result = MCPToolResult(
+                        success=True,
+                        data=data,
                         metadata={
                             "tool": name,
                             "timestamp": datetime.utcnow().isoformat(),
@@ -494,8 +678,82 @@ class InstagramMCPServer:
                         },
                     )
 
+                elif name == "get_followers":
+                    from .unofficial_client import get_followers
+
+                    login_username, password = self._unofficial_credentials()
+                    data = await get_followers(
+                        login_username,
+                        password,
+                        arguments.get("username"),
+                        arguments.get("only_new", False),
+                        self.settings.unofficial_follower_fetch_daily_limit,
+                    )
+                    result = MCPToolResult(
+                        success=True,
+                        data=data,
+                        metadata={
+                            "tool": name,
+                            "timestamp": datetime.utcnow().isoformat(),
+                        },
+                    )
+
+                elif name == "send_dm_to_user":
+                    from .unofficial_client import send_dm_to_user
+
+                    login_username, password = self._unofficial_credentials()
+                    data = await send_dm_to_user(
+                        login_username,
+                        password,
+                        arguments["message"],
+                        arguments.get("username"),
+                        arguments.get("user_id"),
+                        self.settings.unofficial_dm_daily_limit,
+                        arguments.get("allow_repeat", False),
+                    )
+                    result = MCPToolResult(
+                        success=True,
+                        data=data,
+                        metadata={
+                            "tool": name,
+                            "timestamp": datetime.utcnow().isoformat(),
+                        },
+                    )
+
+                elif name == "get_usage":
+                    data = get_usage(self._usage_account(), self._usage_limits())
+                    result = MCPToolResult(
+                        success=True,
+                        data=data,
+                        metadata={
+                            "tool": name,
+                            "timestamp": datetime.utcnow().isoformat(),
+                        },
+                    )
+
+                elif name in FACEBOOK_TOOL_ACTIONS or name in TIKTOK_TOOL_NAMES:
+                    if name in TIKTOK_TOOL_NAMES:
+                        data = await call_tiktok_tool(name, arguments)
+                    else:
+                        data = await call_facebook_tool(instagram_client, name, arguments)
+                    result = MCPToolResult(
+                        success=True,
+                        data=data,
+                        metadata={
+                            "tool": name,
+                            "timestamp": datetime.utcnow().isoformat(),
+                        },
+                    )
+
                 else:
                     result = MCPToolResult(success=False, error=f"Unknown tool: {name}")
+
+                if usage_action and result.success:
+                    record_event(self._usage_account(), usage_action, tool=name)
+
+            except (UnofficialAPIError, UsageLimitError, TikTokError) as e:
+                logger.error("Tool refused", tool=name, error=str(e))
+                result = MCPToolResult(success=False, error=str(e))
 
             except InstagramAPIError as e:
                 logger.error("Instagram API error", tool=name, error=str(e))
