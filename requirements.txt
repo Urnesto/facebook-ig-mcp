@@ -2,7 +2,7 @@
 mcp>=1.0.0,<2
 instagrapi>=3.0
 playwright>=1.40  # browser fallback for send_dm_to_user
-fastmcp>=0.1.0
+fastmcp>=4.0.11
 
 # HTTP client for Instagram API
 httpx>=0.25.0
