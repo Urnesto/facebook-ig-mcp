@@ -2,6 +2,7 @@
 Instagram API client for MCP server.
 """
 
+import asyncio
 import json
 from datetime import datetime, timedelta
 from io import BytesIO
@@ -136,7 +137,10 @@ class InstagramClient:
         """
         try:
             # Download image to get dimensions
-            response = await self.client.get(image_url)
+            # Some image hosts drop requests with the default httpx User-Agent
+            response = await self.client.get(
+                image_url, headers={"User-Agent": "Mozilla/5.0"}
+            )
             response.raise_for_status()
 
             # Open image and get dimensions
@@ -363,8 +367,10 @@ class InstagramClient:
             media_list = []
 
             for item in data.get("data", []):
+                # Copy so the cached response keeps its original string timestamp
+                item = dict(item)
                 # Convert timestamp to datetime
-                if "timestamp" in item:
+                if isinstance(item.get("timestamp"), str):
                     item["timestamp"] = datetime.fromisoformat(
                         item["timestamp"].replace("Z", "+00:00")
                     )
@@ -442,11 +448,29 @@ class InstagramClient:
 
             container_id = container_response["id"]
 
+            # Wait until Instagram has finished processing the container,
+            # otherwise publishing fails with "Media ID is not available"
+            for _ in range(30):
+                status = await self._make_request(
+                    "GET", container_id, params={"fields": "status_code"}, use_cache=False
+                )
+                status_code = status.get("status_code")
+                if status_code in (None, "FINISHED", "PUBLISHED"):
+                    break
+                if status_code in ("ERROR", "EXPIRED"):
+                    raise InstagramAPIError(
+                        f"Instagram could not process the media (status {status_code})"
+                    )
+                await asyncio.sleep(2)
+
             # Step 2: Publish the media
             publish_data = {"creation_id": container_id}
             publish_response = await self._make_request(
                 "POST", f"{account_id}/media_publish", data=publish_data
             )
+
+            # Cached post lists and counts are stale once a new post exists
+            self._cache.clear()
 
             return PublishMediaResponse(id=publish_response["id"], success=True)
 
@@ -565,13 +589,22 @@ class InstagramClient:
         return data.get("data", [])
 
     async def reply_to_comment(
-        self, platform: str, comment_id: str, message: str
+        self,
+        platform: str,
+        comment_id: str,
+        message: str = "",
+        gif_url: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Reply to a Facebook or Instagram comment."""
+        """Reply to a Facebook or Instagram comment, on Facebook optionally with a GIF."""
+        if gif_url and platform == "instagram":
+            raise InstagramAPIError("Instagram does not accept a GIF in a comment reply")
+        if not message and not gif_url:
+            raise InstagramAPIError("Give a message, a gif_url, or both")
         edge = "replies" if platform == "instagram" else "comments"
-        return await self._make_request(
-            "POST", f"{comment_id}/{edge}", data={"message": message}
-        )
+        data = {"message": message} if message else {}
+        if gif_url:
+            data["attachment_share_url"] = gif_url
+        return await self._make_request("POST", f"{comment_id}/{edge}", data=data)
 
     async def set_comment_hidden(
         self, platform: str, comment_id: str, hidden: bool = True
@@ -613,10 +646,16 @@ class InstagramClient:
         params = {"fields": "id,name,instagram_business_account"}
 
         try:
-            data = await self._make_request("GET", "me/accounts", params=params)
+            try:
+                data = await self._make_request("GET", "me/accounts", params=params)
+                items = data.get("data", [])
+            except InstagramAPIError:
+                # With a Page access token "me" is the Page itself, which has no accounts edge
+                items = [await self._make_request("GET", "me", params=params)]
+
             pages = []
 
-            for item in data.get("data", []):
+            for item in items:
                 pages.append(FacebookPage(**item))
 
             return pages

@@ -32,9 +32,17 @@
 3. Click **"Generate Access Token"**
 4. Select permissions:
    - `pages_show_list`
+   - `pages_read_engagement`
+   - `pages_read_user_content`
+   - `pages_manage_engagement`
+   - `pages_manage_posts`
+   - `read_insights`
    - `instagram_basic`
    - `instagram_content_publish`
    - `instagram_manage_insights`
+   - `instagram_manage_comments`
+   - `business_management`
+   - `instagram_manage_messages` and `pages_manage_metadata` (only for DMs)
 5. Copy the generated token
 
 #### 5. Get Instagram Business Account ID (30 seconds)
@@ -136,8 +144,18 @@ def refresh_token(current_token, app_id, app_secret):
 | `instagram_basic` | Read basic profile info, media |
 | `instagram_content_publish` | Upload and publish content |
 | `instagram_manage_insights` | Access analytics and insights |
+| `instagram_manage_comments` | Read, reply to, hide and delete Instagram comments |
 | `pages_show_list` | List connected Facebook pages |
-| `pages_read_engagement` | Read page engagement metrics |
+| `pages_read_engagement` | Read Page content and posts |
+| `pages_read_user_content` | Read comments on the Page |
+| `pages_manage_engagement` | Comment, hide, delete and like as the Page |
+| `pages_manage_posts` | Publish, edit and delete Page posts |
+| `read_insights` | Read Page and post statistics |
+| `business_management` | Reach a Page that belongs to a business account |
+| `instagram_manage_messages` | Read and send Instagram DMs (optional) |
+| `pages_manage_metadata` | Required next to `instagram_manage_messages` for DMs (optional) |
+
+The README has the same list with the tools each permission unlocks: [Required Meta Permissions](README.md#required-meta-permissions).
 
 ## 🔗 Useful Links
 

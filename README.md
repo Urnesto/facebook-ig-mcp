@@ -38,23 +38,39 @@ A Model Context Protocol (MCP) server that provides seamless integration with In
 3. **Access Token**: Long-lived access token with appropriate permissions
 4. **Python 3.10+**: For running the MCP server (required by MCP dependencies)
 
-### Required Instagram API Permissions
+### Required Meta Permissions
 
-**Standard Access** (available immediately):
-- `instagram_basic`
-- `instagram_content_publish`
-- `instagram_manage_insights`
-- `instagram_manage_comments`
-- `pages_show_list`
-- `pages_read_engagement`
-- `pages_manage_metadata`
-- `pages_read_user_content`
-- `business_management`
+Tick these when you generate the access token (Graph API Explorer → **Add a Permission**). The token saved in `.env` is a Page token, and it carries whatever was ticked at that moment. To add a permission later, generate a new token.
 
-**Advanced Access** (requires Meta App Review):
-- `instagram_manage_messages` - Required for Direct Messaging features
+| Permission | What it allows | Tools that need it |
+|---|---|---|
+| `pages_show_list` | See the Pages you manage | `get_account_pages`, setup wizard |
+| `pages_read_engagement` | Read Page content and posts | `get_facebook_posts`, `get_account_pages` |
+| `pages_read_user_content` | Read comments people leave on the Page | `get_comments` (Facebook) |
+| `pages_manage_engagement` | Comment, hide, delete and like as the Page | `reply_to_comment`, `hide_comment`, `delete_comment`, `like_facebook_comment` (Facebook) |
+| `pages_manage_posts` | Publish, edit and delete Page posts | `publish_facebook_post`, `update_facebook_post`, `delete_facebook_post` |
+| `read_insights` | Read Page and post statistics | `get_facebook_page_insights`, `get_facebook_post_insights` |
+| `instagram_basic` | Read the Instagram profile and posts | `get_profile_info`, `get_media_posts`, `validate_access_token` |
+| `instagram_content_publish` | Publish photos and videos to Instagram | `publish_media` |
+| `instagram_manage_comments` | Read, reply to, hide and delete Instagram comments | `get_comments`, `reply_to_comment`, `hide_comment`, `delete_comment` (Instagram) |
+| `instagram_manage_insights` | Read Instagram statistics | `get_account_insights`, `get_media_insights` |
+| `business_management` | Reach a Page that belongs to a business account | All of the above, when the Page is in a Business portfolio |
+| `instagram_manage_messages` | Read and send Instagram DMs through the official API | `get_conversations`, `get_conversation_messages`, `send_dm` |
+| `pages_manage_metadata` | Required by Meta next to `instagram_manage_messages` for the DM endpoints | `get_conversations`, `get_conversation_messages`, `send_dm` |
 
-> ⚠️ **Instagram DM Features**: Reading and sending Instagram direct messages requires Advanced Access approval from Meta. See [INSTAGRAM_DM_SETUP.md](INSTAGRAM_DM_SETUP.md) for the App Review process.
+Only the last two are optional: leave them out if you do not use the official DM tools.
+
+**`instagram_manage_messages` needs more than a tick.** With the permission on the token, the DM tools still return an empty list or an error until all of these are true:
+
+1. `pages_manage_metadata` is on the same token.
+2. In the Instagram app, **Settings → Messages and story replies → Message controls → Connected tools → Allow access to messages** is switched on.
+3. The person who wrote to you has a role on the Meta app (admin, developer or tester), **or** Meta has granted the app Advanced Access for `instagram_manage_messages` through App Review. Without Advanced Access, messages from everyone else are not returned.
+
+See [INSTAGRAM_DM_SETUP.md](INSTAGRAM_DM_SETUP.md) for the App Review process.
+
+**No Meta permission needed:** `get_followers` and `send_dm_to_user` sign in with `INSTAGRAM_USERNAME` and `INSTAGRAM_PASSWORD` instead of the access token. The TikTok tools use TikTok's own scopes (`user.info.basic`, `video.publish`, `video.upload`), which the TikTok app adds automatically.
+
+**Check what your token has:** paste it into the [Access Token Debugger](https://developers.facebook.com/tools/debug/accesstoken/). The **Scopes** line lists every permission on it.
 
 ## 🔑 How to Get Instagram API Credentials
 
@@ -111,11 +127,7 @@ This section provides a step-by-step guide to obtain the necessary credentials f
 2. **Configure Permissions**:
    - Go to Instagram Graph API → Permissions
    - Request the following permissions:
-     - `instagram_basic`
-     - `instagram_content_publish`
-     - `instagram_manage_insights`
-     - `pages_show_list`
-     - `pages_read_engagement`
+     - every permission in the [Required Meta Permissions](#required-meta-permissions) table
 
 ### Step 5: Generate Access Token
 

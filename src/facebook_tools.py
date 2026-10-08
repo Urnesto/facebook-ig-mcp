@@ -88,15 +88,23 @@ FACEBOOK_TOOL_DEFS: List[Tool] = [
     ),
     Tool(
         name="reply_to_comment",
-        description="Reply to a comment on Facebook or Instagram, as the Page or account.",
+        description=(
+            "Reply to a comment on Facebook or Instagram, as the Page or account. "
+            "On Facebook the reply can carry a GIF; give a message, a gif_url, or both."
+        ),
         inputSchema={
             "type": "object",
             "properties": {
                 "platform": PLATFORM,
                 "comment_id": {"type": "string", "description": "Comment ID from get_comments"},
                 "message": {"type": "string", "description": "Text of the reply"},
+                "gif_url": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "Facebook only: link to a GIF, for example a giphy.com page",
+                },
             },
-            "required": ["platform", "comment_id", "message"],
+            "required": ["platform", "comment_id"],
         },
     ),
     Tool(
@@ -190,20 +198,25 @@ async def call_facebook_tool(
 ) -> Any:
     """Run one of the tools defined in FACEBOOK_TOOL_DEFS and return its data."""
     if name == "get_facebook_posts":
-        return await client.get_facebook_posts(
+        posts = await client.get_facebook_posts(
             arguments.get("limit", 10), arguments.get("scheduled", False)
         )
+        return {"posts": posts, "count": len(posts)}
     if name == "update_facebook_post":
         return await client.update_facebook_post(arguments["post_id"], arguments["message"])
     if name == "delete_facebook_post":
         return await client.delete_object(arguments["post_id"])
     if name == "get_comments":
-        return await client.get_comments(
+        comments = await client.get_comments(
             arguments["platform"], arguments["post_id"], arguments.get("limit", 25)
         )
+        return {"comments": comments, "count": len(comments)}
     if name == "reply_to_comment":
         return await client.reply_to_comment(
-            arguments["platform"], arguments["comment_id"], arguments["message"]
+            arguments["platform"],
+            arguments["comment_id"],
+            arguments.get("message", ""),
+            arguments.get("gif_url"),
         )
     if name == "hide_comment":
         return await client.set_comment_hidden(

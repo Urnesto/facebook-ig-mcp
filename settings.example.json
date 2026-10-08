@@ -1,0 +1,37 @@
+{
+  "enabledMcpjsonServers": ["instagram"],
+  "permissions": {
+    "allow": [
+      "mcp__instagram__validate_access_token",
+      "mcp__instagram__get_usage",
+      "mcp__instagram__get_profile_info",
+      "mcp__instagram__get_account_pages",
+      "mcp__instagram__get_account_insights",
+      "mcp__instagram__get_media_posts",
+      "mcp__instagram__get_media_insights",
+      "mcp__instagram__publish_media",
+      "mcp__instagram__get_conversations",
+      "mcp__instagram__get_conversation_messages",
+      "mcp__instagram__send_dm",
+      "mcp__instagram__send_dm_to_user",
+      "mcp__instagram__get_followers",
+      "mcp__instagram__get_comments",
+      "mcp__instagram__reply_to_comment",
+      "mcp__instagram__hide_comment",
+      "mcp__instagram__delete_comment",
+      "mcp__instagram__get_facebook_posts",
+      "mcp__instagram__get_facebook_post_insights",
+      "mcp__instagram__get_facebook_page_insights",
+      "mcp__instagram__publish_facebook_post",
+      "mcp__instagram__update_facebook_post",
+      "mcp__instagram__delete_facebook_post",
+      "mcp__instagram__like_facebook_comment",
+      "mcp__instagram__tiktok_get_creator_info",
+      "mcp__instagram__tiktok_get_post_status",
+      "mcp__instagram__tiktok_publish_photos",
+      "mcp__instagram__tiktok_publish_video"
+    ],
+    "ask": [],
+    "deny": []
+  }
+}

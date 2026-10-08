@@ -65,7 +65,8 @@ The `token` window turns the Explorer token into the Page token and the Instagra
 
 1. Run `uv run python -m src.setup_wizard --status`.
 2. Ask which parts the user wants: Facebook and Instagram (official), followers and direct messages (unofficial), TikTok.
-3. Do not open any window yet. Each secret gets its own window at the moment it is needed (see "The secret hand-off").
+3. Check the browser. If the browser tools are available, open https://developers.facebook.com/apps/ and see whether the user is logged in. If a login page appears, ask the user to log in (Facebook, Instagram, TikTok, and the two developer sites) and wait; never log in for them. If the browser tools are not available, tell the user to install the Claude in Chrome extension from https://claude.com/chrome and start Claude with `claude --chrome`; without it, give links and instructions and let the user click.
+4. Do not open any window yet. Each secret gets its own window at the moment it is needed (see "The secret hand-off").
 
 ## Step 3. Facebook Page
 
@@ -116,7 +117,7 @@ Skip to step 6 if the user already has a Meta app.
 2. Under **Meta App**, pick the app.
 3. In the **User or Page** dropdown, choose **Get User Access Token**.
 4. Under **Permissions**, open the dropdown below **Add a Permission** and tick:
-   `pages_show_list`, `pages_read_engagement`, `pages_read_user_content`, `pages_manage_engagement`, `pages_manage_posts`, `instagram_basic`, `instagram_content_publish`, `instagram_manage_insights`, `instagram_manage_comments`, `read_insights`, `business_management`, and `instagram_manage_messages` only if the user wants to read and reply to DMs.
+   `pages_show_list`, `pages_read_engagement`, `pages_read_user_content`, `pages_manage_engagement`, `pages_manage_posts`, `instagram_basic`, `instagram_content_publish`, `instagram_manage_insights`, `instagram_manage_comments`, `read_insights`, `business_management`, and `instagram_manage_messages` plus `pages_manage_metadata` only if the user wants to read and reply to DMs (the two go together; DMs also need **Allow access to messages** switched on in the Instagram app under Connected tools).
 5. The user clicks **Generate Access Token**, selects their **Page** and **Instagram account** in the Facebook window, and approves.
 6. Hand-off for `token`: run `open token --page "PAGE NAME"`, tell the user to click the copy icon next to the token and paste it into the window, then run `wait INSTAGRAM_ACCESS_TOKEN`. The window extends the token and saves the Page token and the Instagram account number.
 7. Run `--status`. All four Meta values should be `set`.

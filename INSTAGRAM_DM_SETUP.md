@@ -28,14 +28,26 @@ These permissions work immediately after OAuth connection:
 - ✅ `instagram_manage_insights` - Analytics data
 - ✅ `instagram_manage_comments` - Comment management
 - ✅ `pages_show_list` - List Facebook pages
-- ✅ `pages_read_engagement` - Page engagement metrics
-- ✅ `pages_manage_metadata` - Page metadata
-- ✅ `pages_read_user_content` - User-generated content
+- ✅ `pages_read_engagement` - Page content and posts
+- ✅ `pages_read_user_content` - Comments on the Page
+- ✅ `pages_manage_engagement` - Comment, hide, delete and like as the Page
+- ✅ `pages_manage_posts` - Publish, edit and delete Page posts
+- ✅ `read_insights` - Page and post statistics
 - ✅ `business_management` - Business account management
 
-### Advanced Access (Requires App Review)
-These permissions require Meta's approval:
+The full list with the tools each one unlocks is in the README: [Required Meta Permissions](README.md#required-meta-permissions).
+
+### Needed for DMs
+All three must be on the token that is saved in `.env`:
 - ⏳ `instagram_manage_messages` - **Required for all DM features**
+- ⏳ `pages_manage_metadata` - Required by Meta next to `instagram_manage_messages`
+- ✅ `instagram_basic` - Already on the token from the standard setup
+
+Ticking `instagram_manage_messages` in the Graph API Explorer puts it on the token straight away, with Standard Access. That is enough to read and answer messages from people who have a role on your Meta app (admin, developer, tester). Messages from anyone else need **Advanced Access**, which Meta grants through App Review.
+
+Two more things have to be true, or the tools return an empty list:
+- In the Instagram app, **Settings → Messages and story replies → Message controls → Connected tools → Allow access to messages** is switched on.
+- The Instagram account is a Business or Creator account linked to the Page the token belongs to.
 
 ## Prerequisites
 
@@ -174,6 +186,18 @@ Add testers to your app to test DM features before approval:
 **Temporary Workaround**: None - this permission REQUIRES Meta approval.
 
 **Status Check**: Verify in App Dashboard → App Review → Permissions and Features.
+
+### `get_conversations` returns an empty list
+
+**Cause**: The call worked, but Meta returned nothing. The token is valid, so no error is raised. The usual reasons, in order:
+
+1. **Allow access to messages** is switched off in the Instagram app (Settings → Messages and story replies → Message controls → Connected tools).
+2. `pages_manage_metadata` is missing from the token.
+3. `instagram_manage_messages` is missing from the token.
+4. The app has Standard Access only, and nobody with a role on the Meta app has written to the account.
+5. The inbox really is empty. Messages in the **Requests** folder count only after you accept them.
+
+**Solution**: Paste the token into the [Access Token Debugger](https://developers.facebook.com/tools/debug/accesstoken/) and read the **Scopes** line. If a permission is missing, generate a new token with it ticked (step 3.4 of `SETUP_GUIDE.md`). Then switch on the Instagram setting, and send the account a message from a profile that has a role on the Meta app.
 
 ### Error: (#10) To use 'Messenger Platform', your use of this endpoint must be reviewed
 

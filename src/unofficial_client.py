@@ -7,6 +7,10 @@ data/ so later calls reuse it instead of logging in again.
 
 Every follower fetch and DM is recorded in data/usage_<username>.json, which is
 used to enforce the configured 24-hour limits and to avoid DMing a user twice.
+
+When the instagrapi login fails, a DM falls back to the instagram.com website
+driven by Playwright (see browser_dm.py). The limits and the log apply to both
+routes.
 """
 
 import asyncio
@@ -29,6 +33,10 @@ _client_username: Optional[str] = None
 
 class UnofficialAPIError(Exception):
     """Raised when the unofficial Instagram API cannot complete a request."""
+
+
+class RepeatDMError(UnofficialAPIError):
+    """Raised when the recipient was already messaged and allow_repeat is off."""
 
 
 def _refuse_challenge_code(username: str, choice: Any) -> str:
@@ -107,7 +115,7 @@ def _refuse_repeat_dm(
         if (user_id and e.get("user_id") == str(user_id)) or (
             username and e.get("username") == username
         ):
-            raise UnofficialAPIError(
+            raise RepeatDMError(
                 f"Already sent a DM to {username or user_id} on {e['at']}. "
                 "Pass allow_repeat=true to message them again"
             )
@@ -139,6 +147,41 @@ def _fetch_followers(
     return followers
 
 
+def _send_in_browser(
+    login_username: str, username: Optional[str], message: str, login_error: Exception
+) -> Dict[str, Any]:
+    """Send through instagram.com after instagrapi could not log in."""
+    reason = str(login_error).splitlines()[0]
+    if not username:
+        raise UnofficialAPIError(
+            f"The instagrapi login failed ({reason}). The browser fallback needs a "
+            "username, not a user ID"
+        )
+    from .browser_dm import BrowserDMError, send_dm_in_browser
+
+    logger.info("instagrapi login failed, sending in the browser", reason=reason)
+    try:
+        send_dm_in_browser(username, message)
+    except BrowserDMError as browser_error:
+        raise UnofficialAPIError(
+            f"Not sent. The instagrapi login failed ({reason}), and the browser "
+            f"fallback failed too: {browser_error} "
+            "Last resort for the assistant: with the Claude in Chrome extension, open "
+            f"https://www.instagram.com/direct/new/, start a chat with {username}, "
+            "type the message, and ask the user before sending it."
+        ) from browser_error
+    record_event(
+        login_username, "dm", username=username, message=message, via="browser"
+    )
+    return {
+        "message_id": None,
+        "thread_id": None,
+        "recipient_user_id": None,
+        "recipient_username": username,
+        "sent_via": "browser",
+    }
+
+
 def _send_dm(
     login_username: str,
     password: str,
@@ -152,7 +195,11 @@ def _send_dm(
     # Check the log before touching Instagram, then again once the ID is resolved
     if not allow_repeat:
         _refuse_repeat_dm(login_username, user_id, username)
-    client = _get_client(login_username, password)
+    try:
+        client = _get_client(login_username, password)
+    except Exception as login_error:
+        # Nothing has been sent yet, so the other route cannot double-send
+        return _send_in_browser(login_username, username, message, login_error)
     if not user_id:
         user_id = str(client.user_id_from_username(username))
         if not allow_repeat:
@@ -173,6 +220,7 @@ def _send_dm(
         "thread_id": str(sent.thread_id) if sent.thread_id else None,
         "recipient_user_id": user_id,
         "recipient_username": username,
+        "sent_via": "instagrapi",
     }
 
 

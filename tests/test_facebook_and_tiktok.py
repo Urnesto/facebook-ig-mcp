@@ -105,6 +105,21 @@ class TestFacebookTools:
         client._make_request.assert_called_with("POST", "c1", data={field: True})
 
     @pytest.mark.asyncio
+    async def test_facebook_reply_can_carry_a_gif(self, client):
+        gif = "https://giphy.com/gifs/abc"
+        await call_facebook_tool(
+            client, "reply_to_comment", {"platform": "facebook", "comment_id": "c1", "gif_url": gif}
+        )
+        client._make_request.assert_called_with(
+            "POST", "c1/comments", data={"attachment_share_url": gif}
+        )
+
+        with pytest.raises(InstagramAPIError):
+            await call_facebook_tool(
+                client, "reply_to_comment", {"platform": "instagram", "comment_id": "c1", "gif_url": gif}
+            )
+
+    @pytest.mark.asyncio
     async def test_delete_tools_send_delete(self, client):
         await call_facebook_tool(client, "delete_facebook_post", {"post_id": "1_2"})
         client._make_request.assert_called_with("DELETE", "1_2")

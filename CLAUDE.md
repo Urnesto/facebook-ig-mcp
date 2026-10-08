@@ -65,6 +65,7 @@ TikTok's sandbox does not save until every starred field under Basic information
 
 ## Rules when operating the tools
 
+- **Always act through the MCP server.** Use the `instagram` server's tools (`mcp__instagram__*`) for everything on Instagram, Facebook and TikTok. Never run the project's Python code directly to post, comment, message or delete. If a tool is missing, or the server is on old code or an old token, ask the user to reconnect the server with `/mcp` and then call the tool. Read-only checks outside the server, such as `setup_wizard --status`, are fine.
 - **Ask before anything that publishes, sends or deletes**: `publish_media`, `publish_facebook_post`, `tiktok_publish_video`, `tiktok_publish_photos`, `send_dm`, `send_dm_to_user`, `reply_to_comment`, `update_facebook_post`, `delete_facebook_post`, `delete_comment`. Show the exact text and target first.
 - **Unofficial tools are risky** (`get_followers`, `send_dm_to_user`). They break Instagram's terms. Tell the user once, keep volume low, never bulk-message, and never send the same text to many people.
 - **Respect the limits.** They live in `src/usage.py` and are enforced from the log in `data/usage_<account>.json`. Do not edit that log to get around a limit.
@@ -86,6 +87,7 @@ TikTok's sandbox does not save until every starred field under Basic information
 | `.mcp.json` | Tells Claude Code how to start the server |
 | `.claude/skills/setup-social-mcp/` | Skill that walks Claude through the whole setup |
 | `SETUP_GUIDE.md` | User guide. `Instagram_MCP_Setup_Guide.docx` is built from it |
+| `docs/CLAUDE_CODE_GUIDE.md` | User reference: every terminal command, Claude Code command and tool, and what it does |
 | `docs/images/` | Screenshots used by the guide |
 
 ## Working on the code

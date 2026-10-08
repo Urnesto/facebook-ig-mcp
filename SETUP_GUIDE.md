@@ -199,6 +199,7 @@ The two Instagram keys are the **access token** (the key Claude uses to act for 
    - `read_insights` (read Page statistics)
    - `business_management` (needed when the Page belongs to a business account)
    - `instagram_manage_messages` (only if you want to read and reply to DMs)
+   - `pages_manage_metadata` (only together with `instagram_manage_messages`; Meta requires it for DMs)
 
 ![Permissions list with the dropdown marked](docs/images/meta-11-permissions.jpg)
 
@@ -262,6 +263,7 @@ Links if you cannot find it:
 | There is no `instagram_business_account` in the answer | The Instagram account is not a Business or Creator account, or it is not linked to the Page. Repeat step 3.1. |
 | Facebook posting is refused later | `pages_manage_posts` was not ticked in step 4 of 3.4. Repeat step 3.4. |
 | Reading or replying to DMs is refused | Meta has not granted "Advanced Access" for messages. See `INSTAGRAM_DM_SETUP.md` in the project folder. |
+| The list of DM conversations is empty although you have messages | `instagram_manage_messages` alone is not enough. Tick `pages_manage_metadata` too and repeat step 3.4, then in the Instagram app switch on **Settings → Messages and story replies → Message controls → Connected tools → Allow access to messages**. Until Meta grants "Advanced Access", only messages from people who have a role on your Meta app are shown. |
 
 ## 4. Set up followers and messages
 

@@ -429,7 +429,9 @@ class InstagramMCPServer:
                     description=(
                         "Send an Instagram direct message to any user by username or user ID "
                         "(unofficial, via instagrapi). Unlike send_dm, the recipient does not need "
-                        "to have messaged first. Bulk or unsolicited messaging can get the account restricted."
+                        "to have messaged first. If the instagrapi login fails, the message is sent "
+                        "through instagram.com in a browser window instead (needs a username). "
+                        "Bulk or unsolicited messaging can get the account restricted."
                     ),
                     inputSchema={
                         "type": "object",
