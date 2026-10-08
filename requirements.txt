@@ -1,5 +1,5 @@
 # Core MCP dependencies
-mcp>=1.0.0,<2
+mcp>=2.3.0,<3
 instagrapi>=3.0
 playwright>=1.40  # browser fallback for send_dm_to_user
 fastmcp>=0.1.0
